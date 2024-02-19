@@ -7,7 +7,7 @@ import (
 	"sync"
 )
 
-type ignoreLocationChecker = func(funcLine, fileLine string) bool
+type ignorePositionChecker = func(funcLine, fileLine string) bool
 
 var (
 	globalSettings   *staticSettings
@@ -17,7 +17,7 @@ var (
 
 	logger *log.Logger
 
-	ignoreStdLibLocaionChecker ignoreLocationChecker = ignoreContainPath{
+	ignoreStdLibChecker ignorePositionChecker = ignoreContainPath{
 		paths: []string{
 			"/src/bufio/",
 			"/src/archive/",
@@ -64,20 +64,22 @@ var (
 		},
 	}.shouldIgnore
 
-	Recover            func()
+	// Recover recover panics.
+	Recover func()
+	// RecoverWithContext recover panic with context, the context can be get from PanicInfo.Context.
 	RecoverWithContext func(ctx context.Context)
-	// Always the given `f` will always be executed. Use `AlwaysStatic` if `f` won't change.
-	Always func(f *func()) action
-	// AlwaysStatic the given `f` will always be executed. Use `Always` if `f` may change.
-	AlwaysStatic func(f func()) action
-	// Succeed the given `f` will be executed if no panic recovered. Use `SucceedStatic` if `f` won't change.
-	Succeed func(f *func()) action
-	// SucceedStatic the given `f` will be executed if no panic recovered. Use `Succeed` if `f` may change.
-	SucceedStatic func(f func()) action
-	// Panic the given `f` will be executed if a panic recovered. Use `PanicStatic` if `f` won't change.
-	Panic func(f *func(PanicInfo)) action
-	// PanicStatic the given `f` will be executed if a panic recovered. Use `Panic` if `f` may change.
-	PanicStatic func(f func(PanicInfo)) action
+	// Always the given `f` will always be executed. Use `AlwaysRef` if `f` may change.
+	Always func(f func()) action
+	// AlwaysRef the given `f` will always be executed. Use `Always` if `f` won't change.
+	AlwaysRef func(f *func()) action
+	// Succeed the given `f` will be executed if no panic recovered. Use `SucceedRef` if `f` may change.
+	Succeed func(f func()) action
+	// SucceedRef the given `f` will be executed if no panic recovered. Use `Succeed` if `f` won't change.
+	SucceedRef func(f *func()) action
+	// Panic the given `f` will be executed if a panic recovered. Use `PanicRef` if `f` may change.
+	Panic func(f func(PanicInfo)) action
+	// PanicRef the given `f` will be executed if a panic recovered. Use `Panic` if `f` won't change.
+	PanicRef func(f *func(PanicInfo)) action
 	// Alias set alias for this recover. We can get alias in PanicInfo.Alias.
 	Alias func(alias string) action
 	// Safe controls how the user functions are executed. If safe is given true, all user functions passed with Succeed/Panic/Always
@@ -85,6 +87,8 @@ var (
 	// panic from user functions won't be recovered. It has a higher priority then Safe property on settings, so we can call
 	// safe as true/false to overwrite the setting.
 	Safe func(safe bool) action
+	// WithExtra anything you want to get from panic info.
+	WithExtra func(any) action
 )
 
 func init() {
@@ -96,19 +100,20 @@ func init() {
 	Recover = a.Recover
 	RecoverWithContext = a.RecoverWithContext
 	Always = a.Always
-	AlwaysStatic = a.AlwaysStatic
+	AlwaysRef = a.AlwaysRef
 	Succeed = a.Succeed
-	SucceedStatic = a.SucceedStatic
+	SucceedRef = a.SucceedRef
 	Panic = a.Panic
-	PanicStatic = a.PanicStatic
+	PanicRef = a.PanicRef
 	Alias = a.Alias
 	Safe = a.Safe
+	WithExtra = a.WithExtra
 }
 
-func IgnoreStdLibLocaionChecker() ignoreLocationChecker { return ignoreStdLibLocaionChecker }
+func IgnoreStdLibChecker() ignorePositionChecker { return ignoreStdLibChecker }
 
 type settings struct {
-	ignoreLocationCheckers []ignoreLocationChecker
+	ignorePositionCheckers []ignorePositionChecker
 	watch                  func(PanicInfo)
 	safe                   bool
 }
@@ -117,7 +122,7 @@ type settings struct {
 // when finding actual panic locations.
 func Default() *settings {
 	return &settings{
-		ignoreLocationCheckers: []ignoreLocationChecker{ignoreStdLibLocaionChecker},
+		ignorePositionCheckers: []ignorePositionChecker{ignoreStdLibChecker},
 		watch:                  discard,
 	}
 }
@@ -145,7 +150,7 @@ func (s *settings) SetWatch(f func(PanicInfo)) *settings { s.watch = f; return s
 // panic from user functions won't be recovered.
 func (s *settings) SetSafe(safe bool) *settings { s.safe = safe; return s }
 
-// SetIgnoreLocationChecker call SetIgnoreLocationChecker on current settings. The checkers are used to find **business-related panic location**.
+// SetIgnorePositionChecker call SetIgnorePositionChecker on current settings. The checkers are used to find **business-related panic location**.
 // e.g. If the we have a bad code: `fmt.Fprintf(nil, "%v", "a")`, if will panic when is executed with stack:
 //
 // *********************************************
@@ -174,8 +179,8 @@ func (s *settings) SetSafe(safe bool) *settings { s.safe = safe; return s }
 //
 // The panic is directly caused by `fmt.Fprintf`, but the reason for this panic is in function main(), so the stack line of `fmt.Fprintf` should be ignored,
 // a checker returns true if it thinks the given location should be ignored.
-func (s *settings) SetIgnoreLocationChecker(checkers ...ignoreLocationChecker) *settings {
-	s.ignoreLocationCheckers = checkers
+func (s *settings) SetIgnorePositionChecker(checkers ...ignorePositionChecker) *settings {
+	s.ignorePositionCheckers = checkers
 	return s
 }
 
@@ -219,8 +224,8 @@ func SetWatchWithSimpleLog() { globalSettings.s.watch = SimpleLog }
 //
 // The panic is directly caused by `fmt.Fprintf`, but the reason for this panic is in function main(), so the stack line of `fmt.Fprintf` should be ignored,
 // a checker returns true if it thinks the given location should be ignored.
-func SetIgnoreLocationChecker(checkers ...ignoreLocationChecker) {
-	globalSettings.s.ignoreLocationCheckers = checkers
+func SetIgnorePositionChecker(checkers ...ignorePositionChecker) {
+	globalSettings.s.ignorePositionCheckers = checkers
 }
 
 // SimpleLog a simple watch function that print log with log.Default()

@@ -33,8 +33,8 @@ func TestRecoverWithActions(t *testing.T) {
 			info                        PanicInfo
 		)
 		func() {
-			defer Alias("loc1").PanicStatic(func(pi PanicInfo) { info = pi }).AlwaysStatic(func() { alwaysCalled = true }).
-				SucceedStatic(func() { succeedCalled = true }).Recover()
+			defer Alias("loc1").Panic(func(pi PanicInfo) { info = pi }).Always(func() { alwaysCalled = true }).
+				Succeed(func() { succeedCalled = true }).Recover()
 
 			panic("a")
 		}()
@@ -60,7 +60,7 @@ func TestRecoverWithActions(t *testing.T) {
 			info                        PanicInfo
 		)
 		func() {
-			defer Alias("loc1").PanicStatic(func(pi PanicInfo) { info = pi }).AlwaysStatic(func() { alwaysCalled = true }).SucceedStatic(func() { succeedCalled = true }).Recover()
+			defer Alias("loc1").Panic(func(pi PanicInfo) { info = pi }).Always(func() { alwaysCalled = true }).Succeed(func() { succeedCalled = true }).Recover()
 		}()
 		assert.True(t, alwaysCalled)
 		assert.True(t, succeedCalled)
@@ -92,7 +92,7 @@ func TestRecoverCanModifyFunc(t *testing.T) {
 		)
 
 		func() {
-			defer Alias("loc1").Panic(&onPanic).Always(&alwaysF).Succeed(&onSucceed).Recover()
+			defer Alias("loc1").PanicRef(&onPanic).AlwaysRef(&alwaysF).SucceedRef(&onSucceed).Recover()
 
 			onPanic = func(pi PanicInfo) { info = pi }
 			alwaysF = func() { alwaysCalled = true }
@@ -118,7 +118,7 @@ func TestRecoverCanModifyFunc(t *testing.T) {
 		)
 
 		func() {
-			defer Alias("loc1").Panic(&onPanic).Always(&alwaysF).Succeed(&onSucceed).Recover()
+			defer Alias("loc1").PanicRef(&onPanic).AlwaysRef(&alwaysF).SucceedRef(&onSucceed).Recover()
 
 			onPanic = func(pi PanicInfo) { info = pi }
 			alwaysF = func() { alwaysCalled = true }
@@ -158,90 +158,90 @@ func TestRecoverWithContextWorksUseNewSettings(t *testing.T) {
 func TestSafe(t *testing.T) {
 	t.Run("Default", func(t *testing.T) {
 		assert.Panics(t, func() {
-			defer SucceedStatic(func() { panic("SucceedStatic") }).Recover()
+			defer Succeed(func() { panic("SucceedStatic") }).Recover()
 		})
 		assert.Panics(t, func() {
-			defer AlwaysStatic(func() { panic("AlwaysStatic") }).Recover()
+			defer Always(func() { panic("AlwaysStatic") }).Recover()
 		})
 		assert.Panics(t, func() {
-			defer PanicStatic(func(PanicInfo) { panic("PanicStatic") }).Recover()
+			defer Panic(func(PanicInfo) { panic("PanicStatic") }).Recover()
 			panic("a")
 		})
 	})
 	t.Run("DefaultWithActionSafe", func(t *testing.T) {
 		func() {
-			defer SucceedStatic(func() { panic("SucceedStatic") }).Safe(true).Recover()
+			defer Succeed(func() { panic("SucceedStatic") }).Safe(true).Recover()
 		}()
 		func() {
-			defer AlwaysStatic(func() { panic("AlwaysStatic") }).Safe(true).Recover()
+			defer Always(func() { panic("AlwaysStatic") }).Safe(true).Recover()
 		}()
 		func() {
-			defer PanicStatic(func(PanicInfo) { panic("PanicStatic") }).Safe(true).Recover()
+			defer Panic(func(PanicInfo) { panic("PanicStatic") }).Safe(true).Recover()
 			panic("a")
 		}()
 	})
 	t.Run("NewSettings", func(t *testing.T) {
 		a := Use(Default())
 		assert.Panics(t, func() {
-			defer a.SucceedStatic(func() { panic("SucceedStatic") }).Recover()
+			defer a.Succeed(func() { panic("SucceedStatic") }).Recover()
 		})
 		assert.Panics(t, func() {
-			defer a.AlwaysStatic(func() { panic("AlwaysStatic") }).Recover()
+			defer a.Always(func() { panic("AlwaysStatic") }).Recover()
 		})
 		assert.Panics(t, func() {
-			defer a.PanicStatic(func(PanicInfo) { panic("PanicStatic") }).Recover()
+			defer a.Panic(func(PanicInfo) { panic("PanicStatic") }).Recover()
 			panic("a")
 		})
 	})
 	t.Run("NewSettingsWithActionSafe", func(t *testing.T) {
 		a := Use(Default())
 		func() {
-			defer a.SucceedStatic(func() { panic("SucceedStatic") }).Safe(true).Recover()
+			defer a.Succeed(func() { panic("SucceedStatic") }).Safe(true).Recover()
 		}()
 		func() {
-			defer a.AlwaysStatic(func() { panic("AlwaysStatic") }).Safe(true).Recover()
+			defer a.Always(func() { panic("AlwaysStatic") }).Safe(true).Recover()
 		}()
 		func() {
-			defer a.PanicStatic(func(PanicInfo) { panic("PanicStatic") }).Safe(true).Recover()
+			defer a.Panic(func(PanicInfo) { panic("PanicStatic") }).Safe(true).Recover()
 			panic("a")
 		}()
 	})
 	t.Run("NewSafeSettings", func(t *testing.T) {
 		a := Use(Default().SetSafe(true))
 		func() {
-			defer a.SucceedStatic(func() { panic("SucceedStatic") }).Recover()
+			defer a.Succeed(func() { panic("SucceedStatic") }).Recover()
 		}()
 		func() {
-			defer a.AlwaysStatic(func() { panic("AlwaysStatic") }).Recover()
+			defer a.Always(func() { panic("AlwaysStatic") }).Recover()
 		}()
 		func() {
-			defer a.PanicStatic(func(PanicInfo) { panic("PanicStatic") }).Recover()
+			defer a.Panic(func(PanicInfo) { panic("PanicStatic") }).Recover()
 			panic("a")
 		}()
 	})
 	t.Run("NewSafeSettingsWithActionSafe", func(t *testing.T) {
 		a := Use(Default().SetSafe(true))
 		func() {
-			defer a.SucceedStatic(func() { panic("SucceedStatic") }).Safe(true).Recover()
+			defer a.Succeed(func() { panic("SucceedStatic") }).Safe(true).Recover()
 		}()
 		func() {
-			defer a.AlwaysStatic(func() { panic("AlwaysStatic") }).Safe(true).Recover()
+			defer a.Always(func() { panic("AlwaysStatic") }).Safe(true).Recover()
 		}()
 		func() {
-			defer a.PanicStatic(func(PanicInfo) { panic("PanicStatic") }).Safe(true).Recover()
+			defer a.Panic(func(PanicInfo) { panic("PanicStatic") }).Safe(true).Recover()
 			panic("a")
 		}()
 	})
 	t.Run("NewSafeSettingsWithActionUnsafe", func(t *testing.T) {
 		a := Use(Default().SetSafe(true))
 		assert.Panics(t, func() {
-			defer a.SucceedStatic(func() { panic("SucceedStatic") }).Safe(false).Recover()
+			defer a.Succeed(func() { panic("SucceedStatic") }).Safe(false).Recover()
 		})
 		assert.Panics(t, func() {
-			defer a.AlwaysStatic(func() { panic("AlwaysStatic") }).Safe(false).Recover()
+			defer a.Always(func() { panic("AlwaysStatic") }).Safe(false).Recover()
 		})
 		assert.Panics(t, func() {
-			defer a.PanicStatic(func(PanicInfo) { panic("PanicStatic") }).Safe(false).Recover()
+			defer a.Panic(func(PanicInfo) { panic("PanicStatic") }).Safe(false).Recover()
 			panic("a")
 		})
 	})
@@ -263,7 +263,7 @@ func TestEdgeCases(t *testing.T) {
 func TestDefaultRecoverCanIgnoreStdLib(t *testing.T) {
 	var info PanicInfo
 	func() {
-		defer PanicStatic(func(pi PanicInfo) { info = pi }).Recover()
+		defer Panic(func(pi PanicInfo) { info = pi }).Recover()
 
 		fmt.Fprint(nil, 1)
 	}()
@@ -278,9 +278,9 @@ func TestDefaultRecoverCanIgnoreStdLib(t *testing.T) {
 func TestNestedPanicsCanBeAnalyzed(t *testing.T) {
 	infos := []PanicInfo{}
 	func() {
-		defer Alias("1").PanicStatic(func(pi PanicInfo) { infos = append(infos, pi) }).Recover()
+		defer Alias("1").Panic(func(pi PanicInfo) { infos = append(infos, pi) }).Recover()
 
-		defer Alias("2").PanicStatic(func(pi PanicInfo) { panic("a") }).Recover()
+		defer Alias("2").Panic(func(pi PanicInfo) { panic("a") }).Recover()
 		fmt.Fprint(nil, 1)
 	}()
 	assert.Len(t, infos, 2)

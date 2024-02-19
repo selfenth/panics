@@ -1,6 +1,7 @@
 # panics
 ---
 
+## 为什么要写这样一个库？
 一个golang处理panics的工具库。
 
 一般我们会怎么写panic呢？极简的大概长下面这样：
@@ -67,13 +68,46 @@ func func1() (val int, err error) {
 func func1() (val int, err error) {
     wg := sync.WaitGroup{}
     wg.Add(1)
-    defer panics.AlwaysStatic(wg.Done).
-        PanicStatic(func(info panics.PanicInfo) {
+    defer panics.Always(wg.Done).
+        Panic(func(info panics.PanicInfo) {
             err, val = fmt.Errorf("panic with:%v", panicObj), -1
         }).
-        SucceedStatic(func() { val = 1 }).
+        Succeed(func() { val = 1 }).
         Recover()
     ...
 }
 ```
+可能看起来上面的方法不是很优雅，但是实际大部分不会那么复杂，很多可能只以一行来实现的，比如`defer panics.Always(wg.Done).Recover()`，是不是还比较优雅呢？另外以Always(Ref)/Panic(Ref)/Succeed(Ref)这样明确语义的方法，是不是可读性也更高呢？
 
+## API解读
+
+在panics库中，包括两个实体：
+- action：一次recover的执行动作，可以基于action设置异化行为
+- settings: 处理recover的配置，基于settings创建出的action会以settings的控制处理为默认
+
+### Action
+
+action的方法：
+- `Recover()`: 执行Recover 
+- `RecoverWithContext(ctx context.Context)`: 执行Recover，如果发生panic，传入的ctx为随PanicInfo给到Watch方法和Panic处理方法
+- `Always(f func()) action`:  传入的方法不管有没有panic都会被执行。如果多次设置该方法，最后一次的值生效
+- `AlwaysRef(f *func()) action`: 传入的方法不管有没有panic都会被执行。如果多次设置该方法，最后一次的值生效
+- `Succeed(f func()) action`: 传入的方法在**没有**panic时被执行。如果多次设置该方法，最后一次的值生效
+- `SucceedRef(f *func()) action`: 传入的方法在**没有**panic时被执行。如果多次设置该方法，最后一次的值生效
+- `Panic(f func(PanicInfo)) action`: 传入的方法在**发生**panic时被执行。如果多次设置该方法，最后一次的值生效
+- `PanicRef(f *func(PanicInfo)) action`: 传入的方法在**发生**panic时被执行。如果多次设置该方法，最后一次的值生效
+- `Alias(alias string) action`: 为当前处理recover的位置设置别名，当这个位置发生panic时，PanicInfo会携带alias给到Watch和Panic处理方法，便于快速发现panic在哪儿被recover
+- `Safe(safe bool) action`: 设置通过Always(Ref)/Panic(Ref)/Succeed(Ref)注入的方法的执行方式，如果设置了true。注入方法将以fallbackSettings（不太容易出错）进行Recover。优先级高于settings中safe的优先级
+- `WithExtra(any) action`: 当panic时Extra将给到Watch方法和Panic处理方法
+
+
+action的创建：
+- `Use(s *settings) action`: 基于配置创建action
+- `ByName(name string) action`: 基于name关联的配置创建action，如果没有发现name关联的配置，使用默认的settings创建action
+- 通过`Recover/RecoverWithContext/Always/AlwaysRef/Succeed/SucceedRef/Panic/PanicRef/Alias/Safe/WithExtra`方法，将基于**全局**配置创建出action
+
+### Settings
+
+- `SetWatch(f func(PanicInfo)) *settings`: 设置watch方法，该方法将在发生panic时被调用
+- `SetSafe(safe bool) *settings`: 设置通过Always(Ref)/Panic(Ref)/Succeed(Ref)注入的方法的执行方式，如果设置了true。注入方法将以fallbackSettings（不太容易出错）进行Recover
+- `SetIgnorePositionChecker(checkers ...ignorePositionChecker) *settings`: 设置堆栈分析时，用于跳过业务不关注的panic位置信息的检测方法。如果checker返回true，表示业务对传入的行信息不关注；

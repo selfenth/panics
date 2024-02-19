@@ -87,23 +87,23 @@ func (a action) needRunFallbackSafe() bool {
 	return a.a.load().safe
 }
 
-// Always the given `f` will always be executed. Use `AlwaysStatic` if `f` won't change.
-func (a action) Always(f *func()) action { a.always = f; return a }
+// Always the given `f` will always be executed. Use `AlwaysRef` if `f` may change.
+func (a action) Always(f func()) action { a.always = &f; return a }
 
-// AlwaysStatic the given `f` will always be executed. Use `Always` if `f` may change.
-func (a action) AlwaysStatic(f func()) action { a.always = &f; return a }
+// AlwaysRef the given `f` will always be executed. Use `Always` if `f` won't change.
+func (a action) AlwaysRef(f *func()) action { a.always = f; return a }
 
-// Succeed the given `f` will be executed if no panic recovered. Use `SucceedStatic` if `f` won't change.
-func (a action) Succeed(f *func()) action { a.onSucceed = f; return a }
+// Succeed the given `f` will be executed if no panic recovered. Use `SucceedRef` if `f` may change.
+func (a action) Succeed(f func()) action { a.onSucceed = &f; return a }
 
-// SucceedStatic the given `f` will be executed if no panic recovered. Use `Succeed` if `f` may change.
-func (a action) SucceedStatic(f func()) action { a.onSucceed = &f; return a }
+// SucceedRef the given `f` will be executed if no panic recovered. Use `Succeed` if `f` won't change.
+func (a action) SucceedRef(f *func()) action { a.onSucceed = f; return a }
 
-// Panic the given `f` will be executed if a panic recovered. Use `PanicStatic` if `f` won't change.
-func (a action) Panic(f *func(PanicInfo)) action { a.onPanic = f; return a }
+// Panic the given `f` will be executed if a panic recovered. Use `PanicRef` if `f` may change.
+func (a action) Panic(f func(PanicInfo)) action { a.onPanic = &f; return a }
 
-// PanicStatic the given `f` will be executed if a panic recovered. Use `Panic` if `f` may change.
-func (a action) PanicStatic(f func(PanicInfo)) action { a.onPanic = &f; return a }
+// PanicRef the given `f` will be executed if a panic recovered. Use `Panic` if `f` won't change.
+func (a action) PanicRef(f *func(PanicInfo)) action { a.onPanic = f; return a }
 
 // Safe controls how the user functions be executed. If safe is given true, all user functions passed with Succeed/Panic/Always
 // will run in safe mode (panics will be recovered and handle with fallback settings which mostly won't fail). Or the
@@ -227,7 +227,7 @@ func (s *action) findPanics(stack string, err any) []struct {
 	return panicLocs
 }
 func (s *action) isIgnoreLoc(funcLine, fileLine string) bool {
-	for _, check := range s.a.load().ignoreLocationCheckers {
+	for _, check := range s.a.load().ignorePositionCheckers {
 		if check(funcLine, fileLine) {
 			return true
 		}
